@@ -89,7 +89,7 @@ jobs:
         image: docker:20.10.12-dind
     steps:
       - name: Login to Docker registry
-        run: docker login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ${{ env.CI_REGISTRY }}
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ env.CI_REGISTRY }}
 
       - name: Download reg
         run: |
