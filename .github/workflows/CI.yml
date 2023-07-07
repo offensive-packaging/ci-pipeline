@@ -96,13 +96,18 @@ jobs:
       - name: Login to Docker registry
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ env.CI_REGISTRY }}
 
+      - name: Create temporary directory
+        id: create-temp-directory
+        run: echo "::set-output name=temp-directory::$(mktemp -d)"
+
       - name: Download reg
         run: |
-          wget -O /usr/bin/reg https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-amd64
-          chmod +x /usr/bin/reg
+          wget -O ${{ steps.create-temp-directory.outputs.temp-directory }}/reg https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-amd64
+          chmod +x ${{ steps.create-temp-directory.outputs.temp-directory }}/reg
 
       - name: Clean images
         run: |
+          # If not master, use REF as staging tag.
           if [ "${{ github.ref }}" != "refs/heads/master" ]; then
             STAGING_TAG="_${{ github.ref }}"
           fi
@@ -110,5 +115,5 @@ jobs:
           IMAGES_LIST='aptly autopkgtest base armel/base armhf/base arm64/base i386/base blhc gbp piuparts reprotest lintian generic_tests'
 
           for IMAGE in $IMAGES_LIST; do
-            reg --registry ${{ env.CI_REGISTRY }} rm ${{ github.repository }}/${IMAGE}:${{ env.RELEASE }}${STAGING_TAG} || true
+            ${{ steps.create-temp-directory.outputs.temp-directory }}/reg --registry ${{ env.CI_REGISTRY }} rm ${{ github.repository }}/${IMAGE}:${{ env.RELEASE }}${STAGING_TAG} || true
           done
