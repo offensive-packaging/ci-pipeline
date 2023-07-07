@@ -41,13 +41,14 @@ jobs:
 
       - name: Configure GPG
         run: |
-          mkdir -p $HOME/.gnupg
-          chmod 600 $HOME/.gnupg
-          echo "keyring /usr/share/keyrings/debian-keyring.gpg" >> $HOME/.gnupg/gpg.conf
-          echo "keyring /usr/share/keyrings/debian-maintainers.gpg" >> $HOME/.gnupg/gpg.conf
-          echo "keyring /usr/share/keyrings/debian-nonupload.gpg" >> $HOME/.gnupg/gpg.conf
-          echo "keyserver hkps://keyserver.ubuntu.com:443" >> $HOME/.gnupg/gpg.conf
-          echo "auto-key-retrieve" >> $HOME/.gnupg/gpg.conf
+          mkdir -p ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg
+          chmod 700 ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg
+          echo "keyring /usr/share/keyrings/debian-keyring.gpg" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
+          echo "keyring /usr/share/keyrings/debian-maintainers.gpg" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
+          echo "keyring /usr/share/keyrings/debian-nonupload.gpg" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
+          echo "keyserver hkps://keyserver.ubuntu.com:443" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
+          echo "auto-key-retrieve" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
+
 
       - name: Get signing key
         run: |
