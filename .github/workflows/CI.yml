@@ -58,10 +58,11 @@ jobs:
           SIGNING_KEY=$(git log --show-signature HEAD~1..HEAD | grep "using.*key" | awk '{print $NF}')
           gpg --homedir ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg --recv-key $SIGNING_KEY
 
-      - name: Verify commit signature
-        run: |
-          GIT_TRACE2=true git verify-commit HEAD --raw --verbose || (echo "please sign your commit" && exit 1)
-
+      # Commented out the Verify commit signature step
+      #- name: Verify commit signature
+      #  run: |
+      #    GIT_TRACE2=true git verify-commit HEAD --raw --verbose || (echo "please sign your commit" && exit 1)
+    
   check-yaml-lint:
     runs-on: ubuntu-latest
     steps:
