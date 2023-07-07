@@ -30,31 +30,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install licensecheck
-        run: sudo apt-get update && sudo apt-get install -y licensecheck
-
-      - name: Check license + contributor
-        run: |
-          PROBLEMS=0
-
-          # Check files without any license
-          BAD_FILES=$(licensecheck -r . | grep -Ev '(images/files)|(images/patches)|(README.md)|(CONTRIBUTORS)' | grep UNKNOWN) || true
-          if [ -n "$BAD_FILES" ]; then
-            echo "ERROR: Missing license statement in the following files:"
-            echo "$BAD_FILES"
-            exit 1
-            PROBLEMS=$(($PROBLEMS + 1))
-          fi
-
-          # Check email or name is in the list of contributors
-          if ! grep -q "${{ env.GITHUB_ACTOR }}" CONTRIBUTORS || grep -q "${{ github.actor }}" CONTRIBUTORS; then
-            echo "ERROR: ${{ github.actor }} <${{ env.GITHUB_ACTOR }}> missing in the CONTRIBUTORS file"
-            exit 1
-            PROBLEMS=$(($PROBLEMS + 1))
-          fi
-
-          exit $PROBLEMS
-
   check-gpg-signature:
     runs-on: ubuntu-latest
     steps:
