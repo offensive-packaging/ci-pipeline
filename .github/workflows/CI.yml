@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+env:
+  DOCKER_TLS_CERTDIR: ""
+  SALSA_CI_DISABLE_APTLY: "false"
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Trigger images job
+        run: |
+          # Include .images-kali.yml here
+          echo "Placeholder for including .images-kali.yml"
+
+  check-license-contributor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install licensecheck
+        run: sudo apt-get update && sudo apt-get install -y licensecheck
+
+      - name: Check license + contributor
+        run: |
+          PROBLEMS=0
+
+          # Check files without any license
+          BAD_FILES=$(licensecheck -r . | grep -Ev '(images/files)|(images/patches)|(README.md)|(CONTRIBUTORS)' | grep UNKNOWN) || true
+          if [ -n "$BAD_FILES" ]; then
+            echo "ERROR: Missing license statement in the following files:"
+            echo "$BAD_FILES"
+            exit 1
+            PROBLEMS=$(($PROBLEMS + 1))
+          fi
+
+          # Check email or name is in the list of contributors
+          if ! grep -q "${{ env.GITHUB_ACTOR }}" CONTRIBUTORS || grep -q "${{ github.actor }}" CONTRIBUTORS; then
+            echo "ERROR: ${{ github.actor }} <${{ env.GITHUB_ACTOR }}> missing in the CONTRIBUTORS file"
+            exit 1
+            PROBLEMS=$(($PROBLEMS + 1))
+          fi
+
+          exit $PROBLEMS
+
+  check-gpg-signature:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends debian-keyring dirmngr git gpg gpg-agent
+
+      - name: Configure GPG
+        run: |
+          mkdir -p $HOME/.gnupg
+          chmod 600 $HOME/.gnupg
+          echo "keyring /usr/share/keyrings/debian-keyring.gpg" >> $HOME/.gnupg/gpg.conf
+          echo "keyring /usr/share/keyrings/debian-maintainers.gpg" >> $HOME/.gnupg/gpg.conf
+          echo "keyring /usr/share/keyrings/debian-nonupload.gpg" >> $HOME/.gnupg/gpg.conf
+          echo "keyserver hkps://keyserver.ubuntu.com:443" >> $HOME/.gnupg/gpg.conf
+          echo "auto-key-retrieve" >> $HOME/.gnupg/gpg.conf
+
+      - name: Get signing key
+        run: |
+          SIGNING_KEY=$(git log --show-signature HEAD~1..HEAD | grep "using.*key" | awk '{print $NF}')
+          gpg --recv-key $SIGNING_KEY
+
+      - name: Verify commit signature
+        run: |
+          GIT_TRACE2=true git verify-commit HEAD --raw --verbose || (echo "please sign your commit" && exit 1)
+
+  check-yaml-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install yamllint
+        run: sudo apt-get update && sudo apt-get install -y yamllint
+
+      - name: Check YAML lint
+        run: yamllint .
+
+  test-pipeline:
+    runs-on: ubuntu-latest
+    needs: [images]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Trigger test pipeline
+        run: |
+          # Include .pipeline-test.yml here
+          echo "Placeholder for including .pipeline-test.yml"
+
+  clean-images:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:20.10.12-dind
+    steps:
+      - name: Login to Docker registry
+        run: docker login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ${{ env.CI_REGISTRY }}
+
+      - name: Download reg
+        run: |
+          wget -O /usr/bin/reg https://github.com/genuinetools/reg/releases/download/v0.13.0/reg-linux-amd64
+          chmod +x /usr/bin/reg
+
+      - name: Clean images
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/master" ]; then
+            STAGING_TAG="_${{ github.ref }}"
+          fi
+
+          IMAGES_LIST='aptly autopkgtest base armel/base armhf/base arm64/base i386/base blhc gbp piuparts reprotest lintian generic_tests'
+
+          for IMAGE in $IMAGES_LIST; do
+            reg --registry ${{ env.CI_REGISTRY }} rm ${{ github.repository }}/${IMAGE}:${{ env.RELEASE }}${STAGING_TAG} || true
+          done
