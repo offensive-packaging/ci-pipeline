@@ -36,6 +36,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Create temporary directory
+        id: create-temp-directory
+        run: echo "::set-output name=temp-directory::$(mktemp -d ${{ github.workspace }}/tmp-XXXXXXXX)"
+
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends debian-keyring dirmngr git gpg gpg-agent
 
@@ -49,11 +53,10 @@ jobs:
           echo "keyserver hkps://keyserver.ubuntu.com:443" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
           echo "auto-key-retrieve" >> ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg/gpg.conf
 
-
       - name: Get signing key
         run: |
           SIGNING_KEY=$(git log --show-signature HEAD~1..HEAD | grep "using.*key" | awk '{print $NF}')
-          gpg --recv-key $SIGNING_KEY
+          gpg --homedir ${{ steps.create-temp-directory.outputs.temp-directory }}/.gnupg --recv-key $SIGNING_KEY
 
       - name: Verify commit signature
         run: |
